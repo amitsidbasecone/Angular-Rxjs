@@ -1,37 +1,57 @@
 import { Component, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 
-import { EMPTY, Subscription, catchError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject, Subscription, catchError, combineLatest, filter, map, startWith, subscribeOn } from 'rxjs';
 import { ProductCategory } from '../product-categories/product-category';
 
 import { ProductService } from './product.service';
+import { ProductCategoryService } from '../product-categories/product-category.service';
 
 @Component({
   templateUrl: './product-list.component.html',
   styleUrls: ['./product-list.component.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductListComponent implements OnDestroy {
   pageTitle = 'Product List';
   errorMessage = '';
   categories: ProductCategory[] = [];
+  private categorySelectedSubject = new BehaviorSubject<number>(0);
+  categoryselectedAction$ = this.categorySelectedSubject.asObservable();
 
-  products$ = this.productService.productsWithCategory$.pipe(
-    catchError(err => {
-      this.errorMessage= err;
+  products$ = combineLatest([
+    this.productService.productsWithCategory$,
+    this.categoryselectedAction$,
+  ]).pipe(
+    map(([products, categoryid]) =>
+      products.filter((product) =>
+        categoryid ? product.categoryId === categoryid : true
+      )
+    ),
+    catchError((err) => {
+      this.errorMessage = err;
       return EMPTY;
     })
   );
 
-  constructor(private productService: ProductService) { }
+  categories$ = this.productCategoryService.productCategories$.pipe(
+    catchError((err) => {
+      this.errorMessage = err;
+      return EMPTY;
+    })
+  );
 
-  ngOnDestroy(): void {
-  }
+  constructor(
+    private productService: ProductService,
+    private productCategoryService: ProductCategoryService
+  ) {}
+
+  ngOnDestroy(): void {}
 
   onAdd(): void {
     console.log('Not yet implemented');
   }
 
   onSelected(categoryId: string): void {
-    console.log('Not yet implemented');
+    this.categorySelectedSubject.next(+categoryId);
   }
 }
