@@ -1,15 +1,23 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 
-import { throwError, Observable } from 'rxjs';
+import { throwError, Observable, catchError, tap } from 'rxjs';
+import { ProductCategory } from './product-category';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ProductCategoryService {
   private productCategoriesUrl = 'api/productCategories';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
+
+  productCategories$ = this.http
+    .get<ProductCategory[]>(this.productCategoriesUrl)
+    .pipe(
+      tap((item) => console.log(`categories ${item}`)),
+      catchError(this.handleError)
+    );
 
   private handleError(err: HttpErrorResponse): Observable<never> {
     // in a real world app, we may send the server to some remote logging infrastructure
