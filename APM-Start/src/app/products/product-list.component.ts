@@ -5,6 +5,7 @@ import { ProductCategory } from '../product-categories/product-category';
 
 import { ProductService } from './product.service';
 import { ProductCategoryService } from '../product-categories/product-category.service';
+import { SupplierService } from '../suppliers/supplier.service';
 
 @Component({
   templateUrl: './product-list.component.html',
@@ -42,7 +43,8 @@ export class ProductListComponent implements OnDestroy {
 
   constructor(
     private productService: ProductService,
-    private productCategoryService: ProductCategoryService
+    private productCategoryService: ProductCategoryService,
+    private supplierService: SupplierService
   ) {}
 
   ngOnDestroy(): void {}
