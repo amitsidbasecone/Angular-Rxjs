@@ -19,7 +19,7 @@ export class ProductListComponent implements OnDestroy {
   categoryselectedAction$ = this.categorySelectedSubject.asObservable();
 
   products$ = combineLatest([
-    this.productService.productsWithCategory$,
+    this.productService.productsWithAdd$,
     this.categoryselectedAction$,
   ]).pipe(
     map(([products, categoryid]) =>
@@ -48,6 +48,7 @@ export class ProductListComponent implements OnDestroy {
   ngOnDestroy(): void {}
 
   onAdd(): void {
+    this.productService.addProduct();
     console.log('Not yet implemented');
   }
 

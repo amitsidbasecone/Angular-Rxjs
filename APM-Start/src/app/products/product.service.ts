@@ -1,41 +1,78 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
-import { catchError, combineLatest, map, Observable, tap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, combineLatest, map, merge, Observable, scan, Subject, tap, throwError } from 'rxjs';
 
 import { Product } from './product';
 import { ProductCategory } from '../product-categories/product-category';
 import { ProductCategoryService } from '../product-categories/product-category.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ProductService {
   private productsUrl = 'api/products';
-  
-  products$ = this.http.get<Product[]>(this.productsUrl)
-  .pipe(
-    map(products =>
-       products.map(product => ({...product, 
-        price: product.price ? product.price * 1.5 : 0,
-        searchKey: [product.productName]
-      } as Product))),
-    tap(data => console.log('Products: ', JSON.stringify(data))),
+
+  productInsertedSubject = new Subject<Product>();
+  productInsertedAction$ = this.productInsertedSubject.asObservable();
+
+  products$ = this.http.get<Product[]>(this.productsUrl).pipe(
+    map((products) =>
+      products.map(
+        (product) =>
+          ({
+            ...product,
+            price: product.price ? product.price * 1.5 : 0,
+            searchKey: [product.productName],
+          } as Product)
+      )
+    ),
+    tap((data) => console.log('Products: ', JSON.stringify(data))),
     catchError(this.handleError)
   );
 
-  productsWithCategory$ = combineLatest(this.products$, this.productCategoryService.productCategories$)
-  .pipe(
-    map(([products, categories])=>
-      products.map(product => ({
-        ...product,
-        category: categories.find(category => category.id === product.categoryId)?.name
-      } as Product))
+  productsWithCategory$ = combineLatest(
+    this.products$,
+    this.productCategoryService.productCategories$
+  ).pipe(
+    map(([products, categories]) =>
+      products.map(
+        (product) =>
+          ({
+            ...product,
+            category: categories.find(
+              (category) => category.id === product.categoryId
+            )?.name,
+          } as Product)
+      )
     )
   );
 
-  constructor(private http: HttpClient,
-    private productCategoryService: ProductCategoryService) { }
+  private productSelectedSubject = new BehaviorSubject<number>(0);
+  productSelectedAction$ = this.productSelectedSubject.asObservable();
+
+  selectedProduct$ = combineLatest([
+    this.productsWithCategory$,
+    this.productSelectedAction$,
+  ]).pipe(
+    map(([products, selectedproductId]) =>
+      products.find((product) => product.id === selectedproductId)
+    ),
+    tap((product) => console.log(`selected product`, product))
+  );
+
+  productsWithAdd$= merge(
+    this.productsWithCategory$,
+    this.productInsertedAction$
+  ).pipe(
+    scan((acc, value) => 
+    (value instanceof Array) ? [...value] : [...acc, value], [] as Product[])
+    );
+
+  constructor(
+    private http: HttpClient,
+    private productCategoryService: ProductCategoryService
+  ) {}
 
   private handleError(err: HttpErrorResponse): Observable<never> {
     // in a real world app, we may send the server to some remote logging infrastructure
@@ -53,4 +90,25 @@ export class ProductService {
     return throwError(() => errorMessage);
   }
 
+  selectedProductChange(selectedProductId: number): void {
+    this.productSelectedSubject.next(selectedProductId);
+  }
+
+  addProduct(newProduct? : Product) {
+    newProduct = newProduct || this.fakeProduct();
+    this.productInsertedSubject.next(newProduct);
+  }
+
+  private fakeProduct(): Product {
+    return {
+      id: 42,
+      productName: 'Another One',
+      productCode: 'TBX-0042',
+      description: 'Our new product',
+      price: 8.9,
+      categoryId: 3,
+      category: 'Toolbox',
+      quantityInStock: 30
+    };
+  }
 }
